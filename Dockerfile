@@ -20,7 +20,6 @@ USER root
 
 COPY services/ /etc/service/
 RUN chmod +x /etc/service/*/run
-RUN chown -R node:node /src
 
 ENTRYPOINT ["runsvdir"]
 CMD ["/etc/service/"]
