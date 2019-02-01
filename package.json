@@ -1,0 +1,26 @@
+{
+  "name": "nutrinet-chatbot",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "nodemon app/index.js",
+    "start": "node app/index.js"
+  },
+  "dependencies": {
+    "@sentry/node": "^4.2.3",
+    "bottender": "^0.15.14",
+    "dotenv": "^4.0.0",
+    "jwt-simple": "^0.5.5",
+    "pouchdb": "^7.0.0",
+    "query-string": "^5.1.0",
+    "request": "^2.88.0",
+    "request-promise": "^4.2.2",
+    "util.promisify": "^1.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^5.8.0",
+    "eslint-config-airbnb-base": "^13.1.0",
+    "eslint-plugin-import": "^2.14.0",
+    "nodemon": "^1.18.9"
+  }
+}
