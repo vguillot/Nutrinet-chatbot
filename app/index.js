@@ -207,7 +207,7 @@ const handler = new MessengerHandler()
 			case 'greetings': // primeiro
 				await context.sendText(`Olá, ${context.session.user.first_name}. Que bom te ver por aqui!`);
 				await waitTypingEffect(context);
-				await context.sendText(`Sou a Ana, assistente digital da Nutrinet Brasil: uma pesquisa científica inédita da USP que busca saber como a alimentação atual dos brasileiros influencia a sua saúde.`);
+				await context.sendText(`Sou a Ana, assistente digital da NutriNet Brasil: uma pesquisa científica inédita da USP que busca saber como a alimentação atual dos brasileiros influencia a sua saúde.`);
 				await context.sendText(`Você se interessa pelo tema “alimentação e saúde”?`, { quick_replies: opt.GostaAlimentacaoESaude });
 				break;
 			case 'Alimentação - Conta mais':
