@@ -250,6 +250,11 @@ São questionários tranquilos de responder. :)`, { quick_replies: opt.ComoFunci
 				break;
 			case 'validHorario':
 				await help.sendPesquisaCard(context, currentUser, pageInfo);
+				const updateUserUrl = `${nutrinetApi}/maintenance/chatbot-user-preferences?fb_id=${currentUser._id}&page_id=${currentUser.pageId}&preferences=%7B%22notification_time%22%3A%22${context.state.whatWasTyped}%22%7D&secret=${nutrinetApiSecret}`;
+				request.put(updateUserUrl, (error, response, body) => {
+					const data = JSON.parse(body);
+					console.log('Data', data);
+				});
 				// setTimeout(async () => {
 				// 	await context.sendText('Sabe o que seria tão legal quanto participar dessa pesquisa? Compartilhar com o maior número de pessoas possível!');
 				// 	await context.sendText('[apresentar cards de compartilhar]');
