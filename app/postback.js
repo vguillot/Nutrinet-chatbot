@@ -1,8 +1,7 @@
 require('dotenv').config();
 
 const { MessengerClient } = require('messaging-api-messenger');
-const config = require('../../prep-chatbot/app/bottender.config').messenger;
-const flow = require('../../prep-chatbot/app/utils/flow');
+const config = require('./bottender.config').messenger;
 
 
 const client = MessengerClient.connect({
@@ -14,7 +13,7 @@ async function createGetStarted() { // eslint-disable-line no-unused-vars
 	console.log(await client.setGetStarted('greetings'));
 	console.log(await client.setGreeting([{
 		locale: 'default',
-		text: flow.getStarted,
+		text: 'Começar',
 	}]));
 }
 
