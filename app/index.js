@@ -26,16 +26,17 @@ const horarioRegex = new RegExp(/^([\d{1,2}])(?:\s*(?:horas?|h)?)?(\se\s)?(?:(\d
 
 const pageInfo = [];
 
-
 const mapPageToAccessToken = async (pageId) => {
 	const filtered = pageInfo.filter(element => element.page_id === pageId);
 
 	// console.log(process.env.ACCESS_TOKEN);
-	console.log(filtered); // it's not updated yet
+	// console.log(filtered[0].access_token); // it's not updated yet
 	// console.log(pageInfo);
 
+	if (filtered && filtered[0] && filtered[0].access_token) {
+		return filtered[0].access_token;
+	}
 	return process.env.ACCESS_TOKEN;
-	// return filtered[0].access_token;
 };
 
 const bot = new MessengerBot({
@@ -47,7 +48,6 @@ const bot = new MessengerBot({
 bot.setInitialState({});
 
 // bot.use(withTyping({ delay: 1000 * 0.1 }));
-
 
 function getPageInfo() {
 	const listAccessTokensUrl = `${nutrinetApi}/maintenance/chatbot-list-access-tokens?secret=${nutrinetApiSecret}`;
