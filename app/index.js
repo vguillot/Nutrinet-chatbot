@@ -96,8 +96,8 @@ const handler = new MessengerHandler()
 			if (!context.state.dialog || context.state.dialog === '' || (context.event.postback && context.event.postback.payload === 'greetings')) { // because of the message that comes from the comment private-reply
 				// await context.resetState();
 				await context.setState({ listenToHorario: false, listenEmail: false });
-				// await context.setState({ dialog: 'greetings' });
-				await context.setState({ dialog: 'Quero participar' });
+				await context.setState({ dialog: 'greetings' });
+				// await context.setState({ dialog: 'Quero participar' });
 			}
 
 			await db.get(context.session.user.id).then(async (doc) => {
