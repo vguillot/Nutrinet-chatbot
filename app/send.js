@@ -13,8 +13,8 @@ exports.send = function (client, idArray, message, callback) {
 				client.associateLabel(id, label.id);
 			});
 			sendBroadcastMessage(label.id, (res, errCode) => {
-        callback(res, errCode);
-      });
+				callback(res, errCode);
+			});
 		});
 	}
 
@@ -33,12 +33,10 @@ exports.send = function (client, idArray, message, callback) {
 					}).catch((err) => {
 						client.deleteLabel(labelId);
 						cb({ error: err.response.data.error }, err.status);
-						return;
 					});
 			}).catch((err) => {
 				client.deleteLabel(labelId);
 				cb({ error: err.response.data.error }, err.status);
-				return;
 			});
 	}
 };

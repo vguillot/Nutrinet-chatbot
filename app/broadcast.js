@@ -3,7 +3,7 @@
 */
 const async = require('async');
 
-exports.start = function (client, db) {
+exports.start = function (client, db) { // eslint-disable-line
 	// Every hours
 	setInterval(checkTime, 3600000);
 
@@ -54,6 +54,8 @@ exports.start = function (client, db) {
 	}
 
 	function sendBroadcastMessage(labelId, name, userId) {
+		console.log('AAAAAAAAAAAAAAAAAAAAAAAaa');
+
 		const target = { custom_label_id: labelId };
 		client.createMessageCreative([
 			{
