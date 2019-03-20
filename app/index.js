@@ -7,7 +7,6 @@ const { createServer } = require('bottender/restify');
 const { MessengerClient } = require('messaging-api-messenger');
 // const dialogFlow = require('apiai-promise');
 const request = require('request');
-const PouchDB = require('pouchdb');
 
 const config = require('./bottender.config.js').messenger;
 const sendModule = require('./send.js');
@@ -17,12 +16,8 @@ const { Sentry } = require('./utils/helper');
 const broadcast = require('./broadcast.js');
 const checkInput = require('./utils/checkInput');
 
-const db = new PouchDB('userBase');
-
 const nutrinetApi = process.env.NUTRINET_API;
 const nutrinetApiSecret = process.env.NUTRINET_API_SECRET;
-
-const horarioRegex = new RegExp(/^([\d{1,2}])(?:\s*(?:horas?|h)?)?(\se\s)?(?:(\d{1,2})(?:m|minutos?)?)?$/);
 
 const pageInfo = [];
 
@@ -36,7 +31,8 @@ const mapPageToAccessToken = async (pageId) => {
 	if (filtered && filtered[0] && filtered[0].access_token) {
 		return filtered[0].access_token;
 	}
-	return process.env.ACCESS_TOKEN;
+
+	return false;
 };
 
 const bot = new MessengerBot({
@@ -61,7 +57,7 @@ function getPageInfo() {
 						pageInfo[index].access_token = element.access_token;
 						pageInfo[index].private_jwt_token = element.private_jwt_token;
 						pageInfo[index].client = MessengerClient.connect(element.access_token);
-						broadcast.start(pageInfo[index].client, db);
+						broadcast.start(pageInfo[index].client);
 					} else {
 						pageInfo.push({
 							page_id: element.page_id,
@@ -69,7 +65,7 @@ function getPageInfo() {
 							private_jwt_token: element.private_jwt_token,
 							client: MessengerClient.connect(element.access_token),
 						});
-						broadcast.start(pageInfo[pageInfo.length - 1].client, db);
+						broadcast.start(pageInfo[pageInfo.length - 1].client);
 					}
 				}
 			});
@@ -92,70 +88,37 @@ getPageInfo();
 const handler = new MessengerHandler()
 	.onEvent(async (context) => {
 		try {
-			let currentUser = {};
-			if (!context.state.dialog || context.state.dialog === '' || (context.event.postback && context.event.postback.payload === 'greetings')) { // because of the message that comes from the comment private-reply
-				// await context.resetState();
-				await context.setState({ listenToHorario: false, listenEmail: false });
-				await context.setState({ dialog: 'greetings' });
-				// await context.setState({ dialog: 'Quero participar' });
-			}
+			const currentUser = {};
 
-			await db.get(context.session.user.id).then(async (doc) => {
-				// user already exists
-				doc.name = context.session.user.first_name;
-				doc.last_name = context.session.user.last_name;
-				doc.gender = context.session.user.gender;
-				doc.pageId = context.event.pageId;
-				doc.session = JSON.stringify(context.state);
-				await db.put(doc, (err, result) => {
-					if (!err) {
-						console.log(`Successfully updated the user ${doc._id}`);
-						currentUser = doc;
-						currentUser._rev = result.rev;
-					} else { console.log(err); }
-				});
-			}).catch(async (err) => { // eslint-disable-line no-unused-vars
-				const user = { // user doesnt exist
-					_id: context.session.user.id,
-					pageId: context.event.pageId,
-					name: context.session.user.first_name,
-					last_name: context.session.user.last_name,
-					gender: context.session.user.gender,
-					session: JSON.stringify(context.state),
-				};
-				await db.put(user, (err2, result) => { // eslint-disable-line no-unused-vars
-					if (!err2) {
-						console.log(`Successfully created user with id ${context.session.user.id}`);
-						currentUser = user;
-					} else { console.log(err2); }
-				});
-			});
-
-			if (context.event.isQuickReply && context.state.dialog !== 'recipientData') {
-				const { payload } = context.event.message.quick_reply;
-				if (context.state.listenEmail === true) {
-					await context.setState({ email: context.event.message.quick_reply.payload });
-					await checkInput.saveEmail(context, currentUser, db, pageInfo);
+			if (context.event.isPostback) {
+				await context.setState({ lastPBpayload: context.event.postback.payload });
+				if (!context.state.dialog || context.state.dialog === '' || context.state.lastPBpayload === 'greetings') { // because of the message that comes from the comment private-reply
+					await context.setState({ listenToHorario: false, listenEmail: false });
+					await context.setState({ dialog: 'greetings' });
 				} else {
-					await context.setState({ dialog: payload });
+					await context.setState({ dialog: context.state.lastPBpayload });
+				}
+			} else if (context.event.isQuickReply) {
+				await context.setState({ lastQRpayload: context.event.message.quick_reply.payload });
+				if (context.state.lastQRpayload.slice(0, 7) === 'horario') {
+					await context.setState({ dialog: 'mostraHoras' });
+				} else if (context.state.lastQRpayload.slice(0, 4) === 'hora') {
+					await context.setState({ dialog: 'terminaHora' });
+				} else if (context.state.listenEmail === true) {
+					await context.setState({ email: context.state.lastQRpayload });
+					await checkInput.saveEmail(context);
+				} else {
+					await context.setState({ dialog: context.state.lastQRpayload });
 				} // end quickreply
-			} else if (context.event.isText && context.state.dialog !== 'recipientData') { // handles text input
+			} else if (context.event.isText) { // handles text input
 				await context.setState({ whatWasTyped: context.event.message.text });
 				if (context.state.listenEmail === true) { // user about to enter e-mail
 					await context.setState({ email: context.state.whatWasTyped });
-					await checkInput.saveEmail(context, currentUser, db, pageInfo);
-				} else if (context.state.listenToHorario === true) { // user about to preferred horario
-					if (horarioRegex.test(context.state.whatWasTyped)) { // check regex
-						await context.sendText('Tudo bem, essa entrada é válida');
-						await context.setState({ dialog: 'validHorario' });
-					} else {
-						await context.sendText('Inválido. Tente novamente');
-					}
+					await checkInput.saveEmail(context);
 				} else { // not on listenToHorario
 					await context.sendText('Não entendi o que você digitou.');
 				}
 			} // end text
-
 
 			switch (context.state.dialog) {
 			case 'greetings': // primeiro
@@ -218,69 +181,42 @@ São questionários tranquilos de responder. :)`, { quick_replies: opt.ComoFunci
 				await context.sendText('Não esqueça de compartilhar a pesquisa com seus amigos!');
 				await context.sendText('[apresentar cards de share]');
 				break;
-			case 'waiting':
-				const session = JSON.parse(currentUser.session);
-				session.time = 30;
-				const diff = await help.hoursBetween(new Date(session.time), new Date());
-				if (diff > 50) {
-					await context.setState({ dialog: 'Finish' });
-					currentUser.notification_time = context.event.message.text;
-					currentUser.session = JSON.stringify(context.state);
-					db.put(currentUser, (err, result) => { // eslint-disable-line no-unused-vars
-						if (!err) {
-							console.log(`Successfully updated ${currentUser._id} with email ${currentUser.email}`);
-						}
-					});
-					const updateUserUrl = `${nutrinetApi}/maintenance/chatbot-user-preferences?fb_id=${currentUser._id}&page_id=${currentUser.pageId}&preferences=%7B%22notification_time%22%3A%22${context.event.message.text}%22%7D&secret=${nutrinetApiSecret}`;
-					request.put(updateUserUrl, (error, response, body) => {
-						const data = JSON.parse(body);
-						console.log('Data', data);
-					});
-					await context.sendText('Legal! Assim eu mando o próximo questionário no horário certo para você. 😉');
-					await context.sendText('E não se esqueça de compartilhar com seus amigos!');
-					await context.sendText('[apresentar cards de compartilhar]');
-					break;
-				} else {
-					await context.sendText('Ops, esse formato não é válido');
-				}
+			case 'mudarNotificacao':
+				await context.setState({ updateNotification: true }); // verifica se estamos atualizando o notification e não configurando pela primeira vez
+				// seria legal verificar se o usuário já tem um notification_time antes de enviar ele pra cá
+				await context.sendText('Seu horário hoje é XX. Vamos mudar seu horário.');
+				// falls throught
+			case 'conigurarHorario':
+				await context.sendText('Em qual período você está disponível? Clique no botão', { quick_replies: opt.mudarNotificacao });
 				break;
-			case 'perguntar horario':
-				await context.setState({ listenToHorario: true });
-				await context.sendText('Em qual período você está disponível? Por exemplo, 2 e 15.');
+			case 'mostraHoras':
+				await context.setState({ horarioIndex: context.state.lastQRpayload.replace('horario', '') });
+				await context.sendText('Em qual hora? Clique no botão', { quick_replies: opt.mostraHora[context.state.horarioIndex] });
 				break;
-			case 'validHorario':
-				await help.sendPesquisaCard(context, currentUser, pageInfo);
-				const updateUserUrl = `${nutrinetApi}/maintenance/chatbot-user-preferences?fb_id=${currentUser._id}&page_id=${currentUser.pageId}&preferences=%7B%22notification_time%22%3A%22${context.state.whatWasTyped}%22%7D&secret=${nutrinetApiSecret}`;
-				request.put(updateUserUrl, (error, response, body) => {
-					const data = JSON.parse(body);
-					console.log('Data', data);
-				});
-				// setTimeout(async () => {
+			case 'terminaHora':
+				await context.setState({ horaIndex: context.state.lastQRpayload.replace('hora', '') });
+				await context.setState({ notificationTime: `${context.state.horaIndex}:00` });
+				if (context.state.updateNotification === true) { // atualizando notificação
+					await context.setState({ updateNotification: false });
+					await checkInput.saveNotificationTime(context.session.user.id, context.event.rawEvent.recipient.id, context.state.notificationTime);
+					await context.sendText('Atualizamos seu horário!');
+				} else { // primeira vez que configuramos a notificação
+					await checkInput.saveNotificationTime(context.session.user.id, context.event.rawEvent.recipient.id, context.state.notificationTime);
+					await help.sendPesquisaCard(context, currentUser, pageInfo);
+					// setTimeout(async () => {
 				// 	await context.sendText('Sabe o que seria tão legal quanto participar dessa pesquisa? Compartilhar com o maior número de pessoas possível!');
 				// 	await context.sendText('[apresentar cards de compartilhar]');
 				// }, 3600000);
+				}
 				break;
 			} // end switch de diálogo
 		} catch (err) {
 			const date = new Date();
-			console.log('\n');
-			console.log(`Parece que aconteceu um erro as ${date.toLocaleTimeString('pt-BR')} de ${date.getDate()}/${date.getMonth() + 1} =>`);
-			console.log(err);
+			console.log(`\nParece que aconteceu um erro as ${date.toLocaleTimeString('pt-BR')} de ${date.getDate()}/${date.getMonth() + 1} =>`, err);
 			await Sentry.configureScope(async (scope) => {
 				if (context.session.user && context.session.user.first_name && context.session.user.last_name) {
 					scope.setUser({ username: `${context.session.user.first_name} ${context.session.user.last_name}` });
 					console.log(`Usuário => ${context.session.user.first_name} ${context.session.user.last_name}`);
-				} else {
-					scope.setUser({ username: 'no_user' });
-					console.log('Usuário => Não conseguimos descobrir o nome do cidadão');
-				}
-				if (context.state && context.state.politicianData && context.state.politicianData.name
-&& context.state.politicianData.office && context.state.politicianData.office.name) {
-					scope.setExtra('admin', `${context.state.politicianData.office.name} ${context.state.politicianData.name}`);
-					console.log(`Administrador => ${context.state.politicianData.office.name} ${context.state.politicianData.name}`);
-				} else {
-					scope.setExtra('admin', 'no_admin');
-					console.log('Administrador => Não conseguimos descobrir o nome do político');
 				}
 
 				scope.setExtra('state', context.state);
@@ -335,35 +271,6 @@ server.get('/update-token', (req, res, next) => {
 	return next();
 });
 
-server.get('/user-info', (req, res, next) => {
-	if (!req.query || !req.query.secret || req.query.secret !== nutrinetApiSecret) {
-		res.status(401);
-		res.send({ error: 'a correct secret is required in the querystring' });
-		return next();
-	}
-	if (req.query.id) {
-		db.get(req.query.id).then((doc) => {
-			doc.facebook_id = doc._id;
-			delete (doc._rev);
-			delete (doc._id);
-			res.send(doc);
-		}).catch((err) => { // eslint-disable-line no-unused-vars
-			res.send(404);
-		});
-	} else {
-		db.allDocs({ include_docs: true, descending: true }, (err, data) => {
-			const result = [];
-			data.rows.forEach((element) => {
-				element.doc.facebook_id = element.doc._id;
-				delete (element.doc._rev);
-				delete (element.doc._id);
-				result.push(element.doc);
-			});
-			res.send(result);
-		});
-	}
-	return next();
-});
 
 server.listen(process.env.API_PORT, () => {
 	console.log(`Server is running on ${process.env.API_PORT} port...`);

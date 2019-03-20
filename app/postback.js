@@ -37,22 +37,27 @@ async function createPersistentMenu() { // eslint-disable-line no-unused-vars
 				// 	title: 'Example site',
 				// 	url: 'http://www.google.com/',
 				// },
-				// {
-				// 	type: 'nested',
-				// 	title: 'Notificações 🔔',
-				// 	call_to_actions: [
-				// 		{
-				// 			type: 'postback',
-				// 			title: 'Ligar Notificações 👌',
-				// 			payload: 'notificationOn',
-				// 		},
-				// 		{
-				// 			type: 'postback',
-				// 			title: 'Parar Notificações 🛑',
-				// 			payload: 'notificationOff',
-				// 		},
-				// 	],
-				// },
+				{
+					type: 'nested',
+					title: 'Notificações',
+					call_to_actions: [
+						{
+							type: 'postback',
+							title: 'Mudar horário',
+							payload: 'mudarNotificacao',
+						},
+						// {
+						// 	type: 'postback',
+						// 	title: 'Ligar Notificações 👌',
+						// 	payload: 'notificationOn',
+						// },
+						// {
+						// 	type: 'postback',
+						// 	title: 'Parar Notificações 🛑',
+						// 	payload: 'notificationOff',
+						// },
+					],
+				},
 			],
 		},
 	]));

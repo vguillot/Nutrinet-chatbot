@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@sentry/node": "^4.2.3",
+    "async": "^2.6.2",
     "bottender": "^0.15.14",
     "dotenv": "^4.0.0",
     "jwt-simple": "^0.5.5",
@@ -16,6 +17,7 @@
     "query-string": "^5.1.0",
     "request": "^2.88.0",
     "request-promise": "^4.2.2",
+    "requisition": "^1.7.0",
     "util.promisify": "^1.0.0"
   },
   "devDependencies": {

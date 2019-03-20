@@ -29,13 +29,13 @@ async function sendPesquisaCard(context, currentUser, pageInfo) {
 	await context.sendText('Que tal ir para o site da pesquisa e fazer parte desse impacto na sociedade?');
 
 	const payload = {
-		name: `${currentUser.name} ${currentUser.last_name}`,
-		page_id: currentUser.pageId,
-		fb_id: currentUser._id,
-		gender: currentUser.gender,
+		fb_id: context.session.user.id,
+		page_id: context.event.rawEvent.recipient.id,
+		name: `${context.session.user.first_name} ${context.session.user.last_name}`,
+		gender: context.session.user.gender,
 		email: context.state.email,
 	};
-	const filtered = pageInfo.filter(element => element.page_id === currentUser.pageId);
+	const filtered = pageInfo.filter(element => element.page_id === context.event.rawEvent.recipient.id);
 	const secret = filtered[0] ? filtered[0].private_jwt_token : 'provisorio';
 	const token = jwt.encode(payload, secret);
 	const card = [{

@@ -1,21 +1,29 @@
 // const help = require('./helper');
+const request = require('requisition');
 
+const nutrinetApi = process.env.NUTRINET_API;
+const nutrinetApiSecret = process.env.NUTRINET_API_SECRET;
 
-async function saveEmail(context, user, db) {
+async function saveEmail(context) {
 	await context.setState({ listenEmail: false });
-	const currentUser = user;
-	await context.setState({ dialog: 'waiting', time: Date.now() });
-	currentUser.email = context.state.email;
-	currentUser.session = JSON.stringify(context.state);
-	db.put(currentUser, (err, result) => { // eslint-disable-line no-unused-vars
-		if (!err) {
-			console.log(`Successfully updated ${currentUser._id} with email ${currentUser.email}`);
-		} else {
-			console.log(err);
-		}
-	});
+	// context.state.email;
+	// JSON.stringify(context.state);
+
 	await context.sendText('Obrigada! 😊');
-	await context.setState({ dialog: 'perguntar horario' });
+	await context.setState({ dialog: 'conigurarHorario', updateNotification: false });
+}
+
+async function saveNotificationTime(fbId, pageId, noticationTime) {
+	const res = await request.put(`${nutrinetApi}/maintenance/chatbot-user-preferences?secret=${nutrinetApiSecret}`).query({
+		preferences: JSON.stringify({ notification_time: noticationTime }),
+		fb_id: fbId,
+		page_id: pageId,
+	});
+
+	const saveNotification = await res.json();
+	console.log('saveNotification', saveNotification);
+	return saveNotification;
 }
 
 module.exports.saveEmail = saveEmail;
+module.exports.saveNotificationTime = saveNotificationTime;

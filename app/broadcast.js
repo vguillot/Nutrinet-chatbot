@@ -3,7 +3,7 @@
 */
 const async = require('async');
 
-exports.start = function (client, db) { // eslint-disable-line
+exports.start = function (client) { // eslint-disable-line
 	// Every hours
 	setInterval(checkTime, 3600000);
 
