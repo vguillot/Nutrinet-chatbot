@@ -12,6 +12,7 @@ const config = require('./bottender.config.js').messenger;
 const sendModule = require('./send.js');
 const opt = require('./utils/options');
 const help = require('./utils/helper');
+const flow = require('./utils/flow');
 const { Sentry } = require('./utils/helper');
 const broadcast = require('./broadcast.js');
 const checkInput = require('./utils/checkInput');
@@ -71,7 +72,7 @@ function getPageInfo() {
 			});
 		} else {
 			const err = error || data.error;
-			throw new Error(`Error with the API, cannot get page informations, please fix it and restart.\nError Message: ${err}`);
+			throw new Error(flow.errorAPI.replace('<error>', err));
 		}
 	});
 }
@@ -116,82 +117,80 @@ const handler = new MessengerHandler()
 					await context.setState({ email: context.state.whatWasTyped });
 					await checkInput.saveEmail(context);
 				} else { // not on listenToHorario
-					await context.sendText('Não entendi o que você digitou.');
+					await context.sendText(flow.errorTyped);
 				}
 			} // end text
 
 			switch (context.state.dialog) {
 			case 'greetings': // primeiro
-				await context.sendText(`Olá, ${context.session.user.first_name}. Que bom te ver por aqui!`);
-				await context.sendText('Sou a Ana, assistente digital da NutriNet Brasil: uma pesquisa científica inédita da USP que busca saber como a alimentação atual dos brasileiros influencia a sua saúde.');
-				await context.sendText('Você se interessa pelo tema “alimentação e saúde”?', { quick_replies: opt.GostaAlimentacaoESaude });
+				await context.sendText(flow.greetings.text1.replace('<username>', context.session.user.first_name));
+				await context.sendText(flow.greetings.text2);
+				await context.sendText(flow.greetings.text3, { quick_replies: opt.GostaAlimentacaoESaude });
 				break;
 			case 'Alimentação - Conta mais':
-				await context.sendText('Essa pesquisa foi feita para você! Tenho certeza de que você vai gostar de participar 😃');
-				await context.sendText('Esta é uma pesquisa da USP que contará com voluntários como você. Sua participação fará a diferença! Você e toda a sociedade irão se beneficiar com esse estudo.');
-				await context.sendText('Vou te explicar como funciona!', { quick_replies: opt.AlimentacaoContaMais });
+				await context.sendText(flow.alimentacaoMais.text1);
+				await context.sendText(flow.alimentacaoMais.text2);
+				await context.sendText(flow.alimentacaoMais.text3, { quick_replies: opt.AlimentacaoContaMais });
 				break;
 			case 'Alimentação - Não':
-				await context.sendText('Poxa! Tudo bem, você pode não se interessar pelo tema “alimentação”, mas sei que, diferentemente de mim, que sou um robô, você se alimenta, certo? E, como para todo mundo, saúde é algo que deve te interessar!');
-				await context.sendText('Vou te mostrar como funciona a pesquisa. Acredito que vai te interessar. Que tal?', { quick_replies: opt.AlimentacaoNao });
+				await context.sendText(flow.alimentacaoNao.text1);
+				await context.sendText(flow.alimentacaoNao.text2, { quick_replies: opt.AlimentacaoNao });
 				break;
 			case 'Como funciona a pesquisa':
-				await context.sendText(`No início você responderá a questionários rápidos sobre sua alimentação, saúde, condições de vida e outras informações que contribuem para seu estado de saúde.\n
-Após alguns meses, solicitaremos informações mais detalhadas sobre como você se alimenta. Periodicamente, a cada três ou seis meses, pediremos que atualize as informações solicitadas inicialmente.\n
-São questionários tranquilos de responder. :)`, { quick_replies: opt.ComoFuncionaAPesquisa });
+				await context.sendText(flow.comoFunciona.text1, { quick_replies: opt.ComoFuncionaAPesquisa });
 				break;
 			case 'Como funciona2':
-				await context.sendText('Para resumir: você gastará pouco tempo para responder a breves questionários, que serão repetidos após certo período. Com essa participação, você irá colaborar para melhorar a saúde de muitas pessoas!');
-				await context.sendText('A pesquisa pode durar vários anos. Mas não se assuste, a pesquisa busca entender a alimentação dos brasileiros, ou seja, não haverá julgamentos e muito menos divulgação dos seus dados. 😉');
-				await context.sendText('E olha que legal: você receberá um certificado da USP! E quanto mais amigos indicar melhor será. 🎉😍', { quick_replies: opt.ComoFunciona2 });
+				await context.sendText(flow.comoFunciona.text2);
+				await context.sendText(flow.comoFunciona.text3);
+				await context.sendText(flow.comoFunciona.text4, { quick_replies: opt.ComoFunciona2 });
 				break;
 			case 'Quero participar':
-				await context.sendText('Que bacana! 😉');
-				await context.sendText('Sua participação nos ajudará a saber como a alimentação atual dos brasileiros influencia a sua saúde e identificar quais mudanças nessa alimentação trariam mais benefícios.');
+				await context.sendText(flow.queroParticipar.text1);
+				await context.sendText(flow.queroParticipar.text2);
 				try {
-					await context.sendText('Agora me conta. Qual seu e-mail?', { quick_replies: [{ content_type: 'user_email' }] });
+					await context.sendText(flow.queroParticipar.askMail, { quick_replies: [{ content_type: 'user_email' }] });
 				} catch (err) {
-					await context.sendText('Agora me conta. Qual seu e-mail?');
+					await context.sendText(flow.queroParticipar.askMail);
 				} finally {
 					await context.setState({ listenEmail: true });
 				}
 				break;
 			case 'Ainda tenho dúvidas':
-				await context.sendText('Tudo bem 😉');
-				await context.sendText('O professor da USP Carlos Monteiro fez um vídeo sobre a pesquisa para você, olha só:');
-				await context.sendText('[link video]', { quick_replies: opt.AindaTenhoDuvidas });
+				await context.sendText(flow.tenhoDuvidas.text1);
+				await context.sendText(flow.tenhoDuvidas.text2);
+				await context.sendText(flow.tenhoDuvidas.text3, { quick_replies: opt.AindaTenhoDuvidas });
 				break;
 			case 'lembrete':
-				await context.sendText(`(lembrete: mensagem exemplo de lembrete de pesquisa)\n\nOlá, ${context.session.user.first_name}.`);
-				await context.sendText('Conforme o prometido, estou aqui para lembrar que você tem um questionário novo para responder. Vamos lá?');
-				await context.sendText('[card link]');
-				await context.sendText('Não se esqueça de compartilhar com seus amigos!');
-				await context.sendText('[apresentar cards de share]', { quick_replies: opt.lembrete });
+				await context.sendText(flow.lembrete.text1.replace('<username>', context.session.user.first_name));
+				await context.sendText(flow.lembrete.text2);
+				await context.sendText(flow.lembrete.text3);
+				await context.sendText(flow.lembrete.text4);
+				await context.sendText(flow.lembrete.text5, { quick_replies: opt.lembrete });
 				break;
 			case 'Não tenho interesse':
-				await context.sendText('Tudo bem! 😉');
-				await context.sendText('Você pode compartilhar com seus amigos que possam se interessar pela pesquisa inédita da USP?');
-				await context.sendText('[apresentar cards de compartilhar]');
-				await context.sendText('Você pode voltar aqui quando quiser para conversar comigo 😉');
-				await context.sendText('Ainda tenho esperanças de ver você e seus amigos na pesquisa 😊 Abs!', { quick_replies: [{ title: 'Voltar para o início', content_type: 'text', payload: 'greetings' }] });
+				await context.sendText(flow.semInteresse.text1);
+				await context.sendText(flow.semInteresse.text2);
+				await context.sendText(flow.semInteresse.text3);
+				await context.sendText(flow.semInteresse.text4);
+				await context.sendText(flow.semInteresse.text5, { quick_replies: opt.semInteresse });
 				break;
 			case 'Ver exp curiosidade':
-				await context.sendText(`(curiosidade: mensagem exemplo de curiosidade da pesquisa / feedback)\n\nOlá, ${context.session.user.first_name}! Dei uma olhada na pesquisa até aqui e quero compartilhar com você algumas curiosidades. Olha só:`);
-				await context.sendText('[link do artigo ou mensagem sobre o fato e/ou imagem]');
-				await context.sendText('Não esqueça de compartilhar a pesquisa com seus amigos!');
-				await context.sendText('[apresentar cards de share]');
+				await context.sendText(flow.verCuriosidade.text1.replace('<username>', context.session.user.first_name));
+				await context.sendText(flow.verCuriosidade.text2);
+				await context.sendText(flow.verCuriosidade.text3);
+				await context.sendText(flow.verCuriosidade.text4);
 				break;
 			case 'mudarNotificacao':
 				await context.setState({ updateNotification: true }); // verifica se estamos atualizando o notification e não configurando pela primeira vez
 				// seria legal verificar se o usuário já tem um notification_time antes de enviar ele pra cá
-				await context.sendText('Seu horário hoje é XX. Vamos mudar seu horário.');
+				await context.sendText(flow.notificacao.text1.replace('<notificacao>', 'XXX'));
 				// falls throught
 			case 'conigurarHorario':
-				await context.sendText('Em qual período você está disponível? Clique no botão', { quick_replies: opt.mudarNotificacao });
+				await context.sendText(flow.notificacao.text2, { quick_replies: opt.mudarNotificacao });
 				break;
 			case 'mostraHoras':
 				await context.setState({ horarioIndex: context.state.lastQRpayload.replace('horario', '') });
-				await context.sendText('Em qual hora? Clique no botão', { quick_replies: opt.mostraHora[context.state.horarioIndex] });
+				await context.sendText(flow.notificacao.text3, { quick_replies: opt.mostraHora[context.state.horarioIndex] });
 				break;
 			case 'terminaHora':
 				await context.setState({ horaIndex: context.state.lastQRpayload.replace('hora', '') });
@@ -199,7 +198,7 @@ São questionários tranquilos de responder. :)`, { quick_replies: opt.ComoFunci
 				if (context.state.updateNotification === true) { // atualizando notificação
 					await context.setState({ updateNotification: false });
 					await checkInput.saveNotificationTime(context.session.user.id, context.event.rawEvent.recipient.id, context.state.notificationTime);
-					await context.sendText('Atualizamos seu horário!');
+					await context.sendText(flow.notificacao.text4);
 				} else { // primeira vez que configuramos a notificação
 					await checkInput.saveNotificationTime(context.session.user.id, context.event.rawEvent.recipient.id, context.state.notificationTime);
 					await help.sendPesquisaCard(context, currentUser, pageInfo);

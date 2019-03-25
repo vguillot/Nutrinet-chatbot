@@ -1,5 +1,6 @@
 const jwt = require('jwt-simple');
 const Sentry = require('@sentry/node');
+const flow = require('./flow');
 
 const nutrinetSite = process.env.NUTRINET_SITE;
 const nutrinetApi = process.env.NUTRINET_API;
@@ -26,7 +27,7 @@ function hoursBetween(date1, date2) {
 
 
 async function sendPesquisaCard(context, currentUser, pageInfo) {
-	await context.sendText('Que tal ir para o site da pesquisa e fazer parte desse impacto na sociedade?');
+	await context.sendText(flow.pesquisaCard.text1);
 
 	const payload = {
 		fb_id: context.session.user.id,
@@ -39,9 +40,9 @@ async function sendPesquisaCard(context, currentUser, pageInfo) {
 	const secret = filtered[0] ? filtered[0].private_jwt_token : 'provisorio';
 	const token = jwt.encode(payload, secret);
 	const card = [{
-		title: 'NutriNet Brasil',
+		title: flow.pesquisaCard.text2,
 		image_url: `${nutrinetApi}/static-html-templates/header.jpg`,
-		subtitle: 'Ajude a promover a saúde e a nutrição de milhões de brasileiros',
+		subtitle: flow.pesquisaCard.text3,
 		default_action: {
 			type: 'web_url',
 			url: `${nutrinetSite}?chatbot_token=${token}`,
@@ -50,7 +51,7 @@ async function sendPesquisaCard(context, currentUser, pageInfo) {
 		buttons: [{
 			type: 'web_url',
 			url: `${nutrinetSite}?chatbot_token=${token}`,
-			title: 'NutriNet Brasil',
+			title: flow.pesquisaCard.text2,
 		}],
 	}];
 	await context.sendGenericTemplate(card);

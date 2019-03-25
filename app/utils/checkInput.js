@@ -1,5 +1,6 @@
 // const help = require('./helper');
 const request = require('requisition');
+const flow = require('./flow');
 
 const nutrinetApi = process.env.NUTRINET_API;
 const nutrinetApiSecret = process.env.NUTRINET_API_SECRET;
@@ -9,7 +10,7 @@ async function saveEmail(context) {
 	// context.state.email;
 	// JSON.stringify(context.state);
 
-	await context.sendText('Obrigada! 😊');
+	await context.sendText(flow.saveEmail.text1);
 	await context.setState({ dialog: 'conigurarHorario', updateNotification: false });
 }
 

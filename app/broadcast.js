@@ -5,7 +5,32 @@ const async = require('async');
 
 exports.start = function (client) { // eslint-disable-line
 	// Every hours
-	setInterval(checkTime, 3600000);
+	function sendBroadcastMessage(labelId, name, userId) {
+		console.log('AAAAAAAAAAAAAAAAAAAAAAAaa');
+
+		const target = { custom_label_id: labelId };
+		client.createMessageCreative([
+			{
+				text: `Olá ${name}. Espero que esteja bem!`,
+			},
+		])
+			.then((messageId) => {
+				client.sendBroadcastMessage(messageId.message_creative_id, target)
+					.then((broadcastId) => { // eslint-disable-line
+						client.createMessageCreative([
+							{
+								text: 'Qual é o melhor horário para você responder à pesquisa?',
+							},
+						])
+							.then((message2Id) => {
+								client.sendBroadcastMessage(message2Id.message_creative_id, target)
+									.then((broadcast2Id) => { // eslint-disable-line
+										client.deleteLabel(labelId);
+									});
+							});
+					});
+			});
+	}
 
 	async function checkTime() {
 		const labelName = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
@@ -37,6 +62,9 @@ exports.start = function (client) { // eslint-disable-line
 		});
 	}
 
+	setInterval(checkTime, 3600000);
+
+
 	// Return the number of hours between two dates
 	function hoursBetween(date1, date2) {
 		// Get 1 hour in milliseconds
@@ -51,32 +79,5 @@ exports.start = function (client) { // eslint-disable-line
 
 		// Convert back to days and return
 		return (difference_ms / one_hour);
-	}
-
-	function sendBroadcastMessage(labelId, name, userId) {
-		console.log('AAAAAAAAAAAAAAAAAAAAAAAaa');
-
-		const target = { custom_label_id: labelId };
-		client.createMessageCreative([
-			{
-				text: `Olá ${name}. Espero que esteja bem!`,
-			},
-		])
-			.then((messageId) => {
-				client.sendBroadcastMessage(messageId.message_creative_id, target)
-					.then((broadcast_id) => {
-						client.createMessageCreative([
-							{
-								text: 'Qual é o melhor horário para você responder à pesquisa?',
-							},
-						])
-							.then((message2Id) => {
-								client.sendBroadcastMessage(message2Id.message_creative_id, target)
-									.then((broadcast2_id) => {
-										client.deleteLabel(labelId);
-									});
-							});
-					});
-			});
 	}
 };

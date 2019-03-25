@@ -26,6 +26,9 @@ module.exports = {
 	lembrete: [
 		{ title: 'Ver exp curiosidade', content_type: 'text', payload: 'Ver exp curiosidade' },
 	],
+	semInteresse: [
+		{ title: 'Voltar para o início', content_type: 'text', payload: 'greetings' },
+	],
 	mudarNotificacao: [
 		{ title: 'Manhã', content_type: 'text', payload: 'horario1' },
 		{ title: 'Tarde', content_type: 'text', payload: 'horario2' },
