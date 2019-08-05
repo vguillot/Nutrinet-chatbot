@@ -21,13 +21,10 @@ const nutrinetApi = process.env.NUTRINET_API;
 const nutrinetApiSecret = process.env.NUTRINET_API_SECRET;
 
 const pageInfo = [];
+let chatbotEnv = '';
 
 const mapPageToAccessToken = async (pageId) => {
 	const filtered = pageInfo.filter(element => element.page_id === pageId);
-
-	// console.log(process.env.ACCESS_TOKEN);
-	// console.log(filtered[0].access_token); // it's not updated yet
-	// console.log(pageInfo);
 
 	if (filtered && filtered[0] && filtered[0].access_token) {
 		return filtered[0].access_token;
@@ -36,22 +33,26 @@ const mapPageToAccessToken = async (pageId) => {
 	return false;
 };
 
-const bot = new MessengerBot({
-	mapPageToAccessToken,
-	appSecret: config.appSecret,
-	sessionStore: new FileSessionStore(),
-});
-
-bot.setInitialState({});
-
 // bot.use(withTyping({ delay: 1000 * 0.1 }));
 
-function getPageInfo() {
+let bot;
+
+
+function getPageInfo(handler, onDone) {
 	const listAccessTokensUrl = `${nutrinetApi}/maintenance/chatbot-list-access-tokens?secret=${nutrinetApiSecret}`;
+	console.log('doing request');
+
 	request(listAccessTokensUrl, (error, response, body) => {
 		const data = JSON.parse(body);
+		console.log(data);
+		console.log('request is done');
+
+		chatbotEnv = data.env;
+
+
 		if (!error && !data.error) {
-			data.pages.forEach((element) => {
+			for (let i = 0; i < data.pages.length; i++) { // eslint-disable-line no-plusplus
+				const element = data.pages[i];
 				if (element.is_valid) {
 					const index = pageInfo.findIndex(ele => ele.page_id === element.pageId);
 					if (index !== -1) {
@@ -69,7 +70,17 @@ function getPageInfo() {
 						broadcast.start(pageInfo[pageInfo.length - 1].client);
 					}
 				}
+			}
+
+			bot = new MessengerBot({
+				mapPageToAccessToken,
+				appSecret: config.appSecret,
+				sessionStore: new FileSessionStore(),
 			});
+			bot.setInitialState({});
+
+			bot.onEvent(handler);
+			onDone();
 		} else {
 			const err = error || data.error;
 			throw new Error(flow.errorAPI.replace('<error>', err));
@@ -77,7 +88,6 @@ function getPageInfo() {
 	});
 }
 
-getPageInfo();
 
 // async function waitTypingEffect(context) { // eslint-disable-line no-unused-vars
 // await context.typingOn();
@@ -201,6 +211,7 @@ const handler = new MessengerHandler()
 					await context.sendText(flow.notificacao.text4);
 				} else { // primeira vez que configuramos a notificação
 					await checkInput.saveNotificationTime(context.session.user.id, context.event.rawEvent.recipient.id, context.state.notificationTime);
+					await context.setState({ chatbotEnv });
 					await help.sendPesquisaCard(context, currentUser, pageInfo);
 					// setTimeout(async () => {
 				// 	await context.sendText('Sabe o que seria tão legal quanto participar dessa pesquisa? Compartilhar com o maior número de pessoas possível!');
@@ -226,51 +237,52 @@ const handler = new MessengerHandler()
 	}); // function handler
 
 
-bot.onEvent(handler);
+getPageInfo(handler, () => {
+	const server = createServer(bot, { verifyToken: config.verifyToken });
 
-const server = createServer(bot, { verifyToken: config.verifyToken });
-
-server.post('/send', (req, res, next) => {
-	if (!req.query || !req.query.secret || req.query.secret !== nutrinetApiSecret) {
-		res.status(401);
-		res.send({ error: 'a correct secret is required in the querystring' });
-		return next();
-	}
-	res.contentType = 'json';
-	let { pageId } = req.body;
-	if (Number.isInteger(pageId)) {
-		pageId = `${pageId}`;
-	}
-	const { fbIds } = req.body;
-	const { message } = req.body;
-	if (typeof pageId !== 'string' || !Array.isArray(fbIds) || (typeof message !== 'string' && typeof message !== 'number')) {
-		res.status(400);
-		res.send({ error: 'malformated' });
-		return next();
-	}
-	const index = pageInfo.findIndex(ele => ele.page_id === pageId);
-	if (index === -1) {
-		res.status(400);
-		res.send({ error: 'page_id does not exists' });
-		return next();
-	}
-	sendModule.send(pageInfo[index].client, fbIds, message, (result, errCode) => {
-		if (errCode) {
-			res.status(errCode);
+	server.post('/send', (req, res, next) => {
+		if (!req.query || !req.query.secret || req.query.secret !== nutrinetApiSecret) {
+			res.status(401);
+			res.send({ error: 'a correct secret is required in the querystring' });
+			return next();
 		}
-		res.send(result);
+		res.contentType = 'json';
+		let { pageId } = req.body;
+		if (Number.isInteger(pageId)) {
+			pageId = `${pageId}`;
+		}
+		const { fbIds } = req.body;
+		const { message } = req.body;
+		if (typeof pageId !== 'string' || !Array.isArray(fbIds) || (typeof message !== 'string' && typeof message !== 'number')) {
+			res.status(400);
+			res.send({ error: 'malformated' });
+			return next();
+		}
+		const index = pageInfo.findIndex(ele => ele.page_id === pageId);
+		if (index === -1) {
+			res.status(400);
+			res.send({ error: 'page_id does not exists' });
+			return next();
+		}
+		sendModule.send(pageInfo[index].client, fbIds, message, (result, errCode) => {
+			if (errCode) {
+				res.status(errCode);
+			}
+			res.send(result);
+			return next();
+		});
 		return next();
 	});
-	return next();
-});
-
-server.get('/update-token', (req, res, next) => {
-	getPageInfo();
-	res.send(200);
-	return next();
-});
 
 
-server.listen(process.env.API_PORT, () => {
-	console.log(`Server is running on ${process.env.API_PORT} port...`);
+	server.get('/update-token', (req, res, next) => {
+		getPageInfo();
+		res.send(200);
+		return next();
+	});
+
+
+	server.listen(process.env.API_PORT, () => {
+		console.log(`Server is running on ${process.env.API_PORT} port...`);
+	});
 });

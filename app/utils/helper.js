@@ -2,9 +2,6 @@ const jwt = require('jwt-simple');
 const Sentry = require('@sentry/node');
 const flow = require('./flow');
 
-const nutrinetSite = process.env.NUTRINET_SITE;
-const nutrinetApi = process.env.NUTRINET_API;
-
 Sentry.init({
 	dsn: process.env.SENTRY_DSN, environment: process.env.ENV, captureUnhandledRejections: false,
 });
@@ -39,22 +36,28 @@ async function sendPesquisaCard(context, currentUser, pageInfo) {
 	const filtered = pageInfo.filter(element => element.page_id === context.event.rawEvent.recipient.id);
 	const secret = filtered[0] ? filtered[0].private_jwt_token : 'provisorio';
 	const token = jwt.encode(payload, secret);
-	const card = [{
-		title: flow.pesquisaCard.text2,
-		image_url: `${nutrinetApi}/static-html-templates/header.jpg`,
-		subtitle: flow.pesquisaCard.text3,
-		default_action: {
-			type: 'web_url',
-			url: `${nutrinetSite}?chatbot_token=${token}`,
-			messenger_extensions: false,
+
+	await context.sendAttachment({
+		type: 'template',
+		payload: {
+			template_type: 'generic',
+			elements: [{
+				title: flow.pesquisaCard.text2,
+				subtitle: flow.pesquisaCard.text3,
+				image_url: context.state.chatbotEnv.LOGO_URL,
+				default_action: {
+					type: 'web_url',
+					url: `${context.state.chatbotEnv.NUTRINET_SITE}?chatbot_token=${token}`,
+					messenger_extensions: false,
+				},
+				buttons: [{
+					type: 'web_url',
+					url: `${context.state.chatbotEnv.NUTRINET_SITE}?chatbot_token=${token}`,
+					title: flow.pesquisaCard.text2,
+				}],
+			}],
 		},
-		buttons: [{
-			type: 'web_url',
-			url: `${nutrinetSite}?chatbot_token=${token}`,
-			title: flow.pesquisaCard.text2,
-		}],
-	}];
-	await context.sendGenericTemplate(card);
+	});
 }
 
 module.exports.hoursBetween = hoursBetween;
