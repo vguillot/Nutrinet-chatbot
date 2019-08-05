@@ -40,16 +40,9 @@ let bot;
 
 function getPageInfo(handler, onDone) {
 	const listAccessTokensUrl = `${nutrinetApi}/maintenance/chatbot-list-access-tokens?secret=${nutrinetApiSecret}`;
-	console.log('doing request');
-
 	request(listAccessTokensUrl, (error, response, body) => {
 		const data = JSON.parse(body);
-		console.log(data);
-		console.log('request is done');
-
 		chatbotEnv = data.env;
-
-
 		if (!error && !data.error) {
 			for (let i = 0; i < data.pages.length; i++) { // eslint-disable-line no-plusplus
 				const element = data.pages[i];
@@ -74,7 +67,8 @@ function getPageInfo(handler, onDone) {
 
 			bot = new MessengerBot({
 				mapPageToAccessToken,
-				appSecret: config.appSecret,
+				verifyToken: chatbotEnv.VERIFY_TOKEN,
+				appSecret: chatbotEnv.APP_SECRET,
 				sessionStore: new FileSessionStore(),
 			});
 			bot.setInitialState({});
