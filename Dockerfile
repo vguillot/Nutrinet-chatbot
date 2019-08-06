@@ -13,13 +13,16 @@ USER node
 WORKDIR /src
 RUN npm install bottender dotenv
 
-ADD package.json /src/
+ADD . /src/
 RUN npm install
 
 USER root
 
 COPY services/ /etc/service/
 RUN chmod +x /etc/service/*/run
+
+RUN chown -R node:node /src
+
 
 ENTRYPOINT ["runsvdir"]
 CMD ["/etc/service/"]
