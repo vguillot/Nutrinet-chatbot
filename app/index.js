@@ -2,7 +2,7 @@
 
 require('dotenv').config();
 
-const {	MessengerBot, FileSessionStore, MessengerHandler } = require('bottender');
+const { MessengerBot, FileSessionStore, MessengerHandler } = require('bottender');
 const { createServer } = require('bottender/restify');
 const { MessengerClient } = require('messaging-api-messenger');
 // const dialogFlow = require('apiai-promise');
@@ -13,6 +13,7 @@ const sendModule = require('./send.js');
 const opt = require('./utils/options');
 const help = require('./utils/helper');
 const flow = require('./utils/flow');
+const { Sentry } = require('./utils/helper');
 const broadcast = require('./broadcast.js');
 const checkInput = require('./utils/checkInput');
 
@@ -32,19 +33,12 @@ const mapPageToAccessToken = async (pageId) => {
 	return false;
 };
 
+// bot.use(withTyping({ delay: 1000 * 0.1 }));
 
-const bot = new MessengerBot({
-	mapPageToAccessToken,
-	appSecret: config.appSecret,
-	verifyToken: config.verifyToken,
-	sessionStore: new FileSessionStore(),
-});
-
-bot.setInitialState({});
+let bot;
 
 
-
-function getPageInfo() {
+function getPageInfo(handler, onDone) {
 	const listAccessTokensUrl = `${nutrinetApi}/maintenance/chatbot-list-access-tokens?secret=${nutrinetApiSecret}`;
 	request(listAccessTokensUrl, (error, response, body) => {
 		const data = JSON.parse(body);
@@ -69,6 +63,19 @@ function getPageInfo() {
 						broadcast.start(pageInfo[pageInfo.length - 1].client);
 					}
 				}
+			}
+
+			if (!bot) {
+				bot = new MessengerBot({
+					mapPageToAccessToken,
+					verifyToken: chatbotEnv.VERIFY_TOKEN,
+					appSecret: chatbotEnv.APP_SECRET,
+					sessionStore: new FileSessionStore(),
+				});
+				bot.setInitialState({});
+
+				bot.onEvent(handler);
+				onDone();
 			}
 		} else {
 			const err = error || data.error;
@@ -203,23 +210,32 @@ const handler = new MessengerHandler()
 					await context.setState({ chatbotEnv });
 					await help.sendPesquisaCard(context, currentUser, pageInfo);
 					// setTimeout(async () => {
-				// 	await context.sendText('Sabe o que seria tão legal quanto participar dessa pesquisa? Compartilhar com o maior número de pessoas possível!');
-				// 	await context.sendText('[apresentar cards de compartilhar]');
-				// }, 3600000);
+					// 	await context.sendText('Sabe o que seria tão legal quanto participar dessa pesquisa? Compartilhar com o maior número de pessoas possível!');
+					// 	await context.sendText('[apresentar cards de compartilhar]');
+					// }, 3600000);
 				}
 				break;
 			} // end switch de diálogo
 		} catch (err) {
 			const date = new Date();
 			console.log(`\nParece que aconteceu um erro as ${date.toLocaleTimeString('pt-BR')} de ${date.getDate()}/${date.getMonth() + 1} =>`, err);
+			await Sentry.configureScope(async (scope) => {
+				if (context.session.user && context.session.user.first_name && context.session.user.last_name) {
+					scope.setUser({ username: `${context.session.user.first_name} ${context.session.user.last_name}` });
+					console.log(`Usuário => ${context.session.user.first_name} ${context.session.user.last_name}`);
+				}
+
+				scope.setExtra('state', context.state);
+				throw err;
+			});
 		} // catch
+		// }); // sentry context
 	}); // function handler
 
 
-	bot.onEvent(handler);
-
+getPageInfo(handler, () => {
 	const server = createServer(bot, { verifyToken: config.verifyToken });
-	
+
 	server.post('/send', (req, res, next) => {
 		if (!req.query || !req.query.secret || req.query.secret !== nutrinetApiSecret) {
 			res.status(401);
@@ -265,4 +281,4 @@ const handler = new MessengerHandler()
 	server.listen(process.env.API_PORT, () => {
 		console.log(`Server is running on ${process.env.API_PORT} port...`);
 	});
-
+});
