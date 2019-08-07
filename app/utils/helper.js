@@ -1,11 +1,7 @@
 const jwt = require('jwt-simple');
-const Sentry = require('@sentry/node');
+
 const flow = require('./flow');
 
-Sentry.init({
-	dsn: process.env.SENTRY_DSN, environment: process.env.ENV, captureUnhandledRejections: false,
-});
-module.exports.Sentry = Sentry;
 
 function hoursBetween(date1, date2) {
 	// Get 1 hour in milliseconds
