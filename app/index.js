@@ -13,7 +13,6 @@ const sendModule = require('./send.js');
 const opt = require('./utils/options');
 const help = require('./utils/helper');
 const flow = require('./utils/flow');
-const { Sentry } = require('./utils/helper');
 const broadcast = require('./broadcast.js');
 const checkInput = require('./utils/checkInput');
 
@@ -33,12 +32,19 @@ const mapPageToAccessToken = async (pageId) => {
 	return false;
 };
 
-// bot.use(withTyping({ delay: 1000 * 0.1 }));
 
-let bot;
+const bot = new MessengerBot({
+	mapPageToAccessToken,
+	appSecret: config.appSecret,
+	verifyToken: config.verifyToken,
+	sessionStore: new FileSessionStore(),
+});
+
+bot.setInitialState({});
 
 
-function getPageInfo(handler, onDone) {
+
+function getPageInfo() {
 	const listAccessTokensUrl = `${nutrinetApi}/maintenance/chatbot-list-access-tokens?secret=${nutrinetApiSecret}`;
 	request(listAccessTokensUrl, (error, response, body) => {
 		const data = JSON.parse(body);
@@ -64,17 +70,6 @@ function getPageInfo(handler, onDone) {
 					}
 				}
 			}
-
-			bot = new MessengerBot({
-				mapPageToAccessToken,
-				verifyToken: chatbotEnv.VERIFY_TOKEN,
-				appSecret: chatbotEnv.APP_SECRET,
-				sessionStore: new FileSessionStore(),
-			});
-			bot.setInitialState({});
-
-			bot.onEvent(handler);
-			onDone();
 		} else {
 			const err = error || data.error;
 			throw new Error(flow.errorAPI.replace('<error>', err));
@@ -217,23 +212,14 @@ const handler = new MessengerHandler()
 		} catch (err) {
 			const date = new Date();
 			console.log(`\nParece que aconteceu um erro as ${date.toLocaleTimeString('pt-BR')} de ${date.getDate()}/${date.getMonth() + 1} =>`, err);
-			await Sentry.configureScope(async (scope) => {
-				if (context.session.user && context.session.user.first_name && context.session.user.last_name) {
-					scope.setUser({ username: `${context.session.user.first_name} ${context.session.user.last_name}` });
-					console.log(`Usuário => ${context.session.user.first_name} ${context.session.user.last_name}`);
-				}
-
-				scope.setExtra('state', context.state);
-				throw err;
-			});
 		} // catch
-		// }); // sentry context
 	}); // function handler
 
 
-getPageInfo(handler, () => {
-	const server = createServer(bot, { verifyToken: config.verifyToken });
+	bot.onEvent(handler);
 
+	const server = createServer(bot, { verifyToken: config.verifyToken });
+	
 	server.post('/send', (req, res, next) => {
 		if (!req.query || !req.query.secret || req.query.secret !== nutrinetApiSecret) {
 			res.status(401);
@@ -279,4 +265,4 @@ getPageInfo(handler, () => {
 	server.listen(process.env.API_PORT, () => {
 		console.log(`Server is running on ${process.env.API_PORT} port...`);
 	});
-});
+
